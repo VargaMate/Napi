@@ -18,6 +18,8 @@
     --frame: #0e0b14;
     --pad: 16px;
     --chrome: 260px;   /* height kept free for the title and hints */
+    --side: 0px;       /* width taken by the touch buttons beside the game */
+    --max: min(1400px, 90vw);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -40,9 +42,9 @@
     -webkit-tap-highlight-color: transparent;
   }
   /* as wide as the window allows while the whole game, title and hints still fit on screen */
-  main { width: 100%; max-width: max(280px, min(1800px, calc((100vh - var(--chrome)) * 800 / 260))); }
+  main { width: 100%; max-width: max(280px, min(var(--max), calc((100vh - var(--chrome)) * 800 / 260 + var(--side)))); }
   @supports (height: 100dvh) {
-    main { max-width: max(280px, min(1800px, calc((100dvh - var(--chrome)) * 800 / 260))); }
+    main { max-width: max(280px, min(var(--max), calc((100dvh - var(--chrome)) * 800 / 260 + var(--side)))); }
   }
   header {
     display: flex;
@@ -56,7 +58,7 @@
   h1 {
     margin: 0;
     font-family: "Press Start 2P", ui-monospace, Consolas, monospace;
-    font-size: clamp(14px, 2.6vw, 40px);
+    font-size: clamp(14px, 2.4vw, 32px);
     font-weight: normal;
     letter-spacing: 2px;
     line-height: 1.4;
@@ -122,11 +124,47 @@
     padding: 2px 6px;
     box-shadow: 0 0 0 2px var(--frame);
   }
-  .rotate { display: none; color: var(--accent); }
+  .rotate, .touch, .pad { display: none; }
+  .rotate { color: var(--accent); }
+  .stage { display: grid; }
 
-  /* touch screens: no keyboard hints; in portrait suggest turning the phone */
+  /* on-screen duck (left) and jump (right) buttons */
+  .pad {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 0;
+    font-size: 14px;
+    touch-action: none;
+  }
+  .pad svg { width: 40px; height: 40px; }
+  .pad.on { background: var(--accent); color: var(--frame); }
+
+  /* touch screens: buttons under the game, no keyboard hints; in portrait suggest turning the phone */
   @media (hover: none) and (pointer: coarse) {
+    :root { --max: 1800px; }
     .keys { display: none; }
+    .touch { display: inline; }
+    .stage {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas: "screen screen" "duck jump";
+      gap: 22px 16px;
+    }
+    .screen { grid-area: screen; }
+    #duck-pad { grid-area: duck; }
+    #jump-pad { grid-area: jump; }
+    .pad { display: flex; height: 88px; }
+  }
+  /* held sideways the buttons sit left and right of the game, under the thumbs */
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+    :root { --side: 188px; }
+    .stage {
+      grid-template-columns: 78px 1fr 78px;
+      grid-template-areas: "duck screen jump";
+      gap: 16px;
+    }
+    .pad { height: auto; }
   }
   @media (orientation: portrait) and (pointer: coarse) {
     .rotate { display: inline; }
@@ -158,13 +196,23 @@
       <button id="mute" type="button" aria-pressed="false">Hang be</button>
     </div>
   </header>
-  <div class="screen">
-    <canvas id="game" width="400" height="130" aria-label="Napi vs Batatrans játék"></canvas>
-    <canvas id="hud" width="800" height="260" aria-hidden="true"></canvas>
+  <div class="stage">
+    <button class="pad" id="duck-pad" type="button">
+      <svg viewBox="0 0 14 14" shape-rendering="crispEdges" aria-hidden="true"><path d="M5 1h4v6h4l-6 6-6-6h4z" fill="currentColor"/></svg>
+      Guggolás
+    </button>
+    <div class="screen">
+      <canvas id="game" width="400" height="130" aria-label="Napi vs Batatrans játék"></canvas>
+      <canvas id="hud" width="800" height="260" aria-hidden="true"></canvas>
+    </div>
+    <button class="pad" id="jump-pad" type="button">
+      <svg viewBox="0 0 14 14" shape-rendering="crispEdges" aria-hidden="true"><path d="M7 1l6 6H9v6H5V7H1z" fill="currentColor"/></svg>
+      Ugrás
+    </button>
   </div>
   <p class="hint">
     <span class="keys"><kbd>Szóköz</kbd> <kbd>↑</kbd> ugrás &nbsp; <kbd>↓</kbd> guggolás<br></span>
-    Telefonon: koppints bárhova az ugráshoz, húzd le az ujjad a guggoláshoz.<br>
+    <span class="touch">Tartsd nyomva a bal gombot a guggoláshoz, a jobbal (vagy bárhova koppintva) ugrasz.<br></span>
     <span class="rotate">Fordítsd el a telefont a nagyobb képért!<br></span>
     Kerüld ki a gépeket és a Batatrans csapatot. Néhányan repülnek is!
   </p>
@@ -1056,6 +1104,8 @@
     last = now;
     update(dt);
     render();
+    duckPad.classList.toggle('on', duckHeld);
+    jumpPad.classList.toggle('on', jumpHeld);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -1079,30 +1129,52 @@
   });
   window.addEventListener('blur', () => { jumpHeld = false; duckHeld = false; });
 
-  // touches anywhere on the page play the game (a bigger target than the small canvas on a phone), except on the buttons
-  let touchStartY = null, touchStartT = 0;
+  // touch: hold the left pad to duck; the right pad, or a tap anywhere else on the page, jumps.
+  // Each finger is tracked on its own so both pads can be used at once; swiping down still ducks.
+  const duckPad = document.getElementById('duck-pad');
+  const jumpPad = document.getElementById('jump-pad');
+  let duckTouch = null, jumpTouch = null, swipeDuck = false, touchStartY = 0, touchStartT = 0;
+  const syncDuck = () => { duckHeld = duckTouch !== null || swipeDuck; };
+
   document.addEventListener('touchstart', e => {
-    if (e.target.closest('button')) return;
+    if (e.target.closest('button:not(.pad)')) return;
     e.preventDefault();
-    if (touchStartY !== null) return;   // a second finger doesn't jump again
-    touchStartY = e.touches[0].clientY;
-    touchStartT = t;
-    jumpHeld = true;
-    press();
+    for (const tch of e.changedTouches) {
+      if (tch.target.closest('#duck-pad')) {
+        if (duckTouch !== null) continue;
+        duckTouch = tch.identifier;
+        syncDuck();
+        if (state !== 'running') press();   // duck is held, so this starts the run without a jump
+      } else if (jumpTouch === null) {
+        jumpTouch = tch.identifier;
+        touchStartY = tch.clientY;
+        touchStartT = t;
+        jumpHeld = true;
+        press();
+      }
+    }
   }, { passive: false });
   document.addEventListener('touchmove', e => {
-    if (touchStartY === null) return;
+    if (duckTouch === null && jumpTouch === null) return;
     e.preventDefault();
-    if (!duckHeld && e.touches[0].clientY - touchStartY > 25) {
-      duckHeld = true;
+    for (const tch of e.changedTouches) {
+      if (tch.identifier !== jumpTouch || swipeDuck || tch.clientY - touchStartY <= 25) continue;
+      swipeDuck = true;
       jumpHeld = false;
+      syncDuck();
       // the tap already started a hop; a quick swipe turns it into an immediate drop
       if (t - touchStartT < 0.25) napi.vy = Math.min(napi.vy, 0);
     }
   }, { passive: false });
   const endTouch = e => {
-    if (touchStartY === null || e.touches.length) return;
-    touchStartY = null; jumpHeld = false; duckHeld = false; releaseJump();
+    for (const tch of e.changedTouches) {
+      if (tch.identifier === duckTouch) { duckTouch = null; syncDuck(); }
+      if (tch.identifier === jumpTouch) {
+        jumpTouch = null; swipeDuck = false; jumpHeld = false;
+        syncDuck();
+        releaseJump();
+      }
+    }
   };
   document.addEventListener('touchend', endTouch);
   document.addEventListener('touchcancel', endTouch);
