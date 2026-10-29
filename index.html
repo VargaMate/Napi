@@ -1,15 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="hu">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Napisaurus Run</title>
+<title>Napi vs Batatrans</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Tiny5&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f4f1ea;
-    --ink: #3b3b3b;
-    --muted: #8a8478;
-    --accent: #e8590c;
+    --bg: #1b1726;
+    --panel: #2a2338;
+    --ink: #f4ecdc;
+    --muted: #a99fbd;
+    --accent: #ff7a2f;
+    --frame: #0e0b14;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -18,102 +23,157 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg);
+    background: radial-gradient(circle at 50% 0%, #2d2442 0%, var(--bg) 60%) var(--bg);
     color: var(--ink);
-    font-family: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-family: "Tiny5", ui-monospace, Consolas, monospace;
     padding: 16px;
   }
-  main { width: 100%; max-width: 900px; }
+  /* as wide as the window allows while the whole game, title and hints still fit on screen */
+  main { width: 100%; max-width: max(320px, min(1800px, calc((100vh - 260px) * 800 / 260))); }
   header {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 10px;
+    margin-bottom: 18px;
   }
-  h1 { margin: 0; font-size: clamp(20px, 4vw, 30px); letter-spacing: 2px; }
+  h1 {
+    margin: 0;
+    font-family: "Press Start 2P", ui-monospace, Consolas, monospace;
+    font-size: clamp(14px, 2.6vw, 40px);
+    font-weight: normal;
+    letter-spacing: 2px;
+    line-height: 1.4;
+    text-shadow: 3px 3px 0 #000;
+  }
   h1 span { color: var(--accent); }
+  h1 small { font-size: 0.6em; color: var(--muted); }
   button {
     font: inherit;
-    font-size: 13px;
+    font-size: 20px;
     color: var(--ink);
-    background: transparent;
-    border: 2px solid var(--ink);
-    border-radius: 6px;
-    padding: 4px 10px;
+    background: var(--panel);
+    border: 0;
+    padding: 10px 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
     cursor: pointer;
+    box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.4), 0 0 0 3px var(--frame);
   }
-  button:hover { background: var(--ink); color: var(--bg); }
+  button:hover { background: var(--accent); color: var(--frame); }
+  .screen {
+    position: relative;
+    border: 6px solid var(--frame);
+    box-shadow: 0 0 0 3px #4a3f63, 8px 8px 0 3px #000;
+  }
+  /* CRT scanlines */
+  .screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 0 1px, transparent 1px 3px);
+  }
   canvas {
     display: block;
     width: 100%;
     height: auto;
     aspect-ratio: 800 / 260;
-    border: 2px solid var(--ink);
-    border-radius: 10px;
-    background: #f7f4ec;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
     cursor: pointer;
   }
-  .hint { margin-top: 10px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+  /* text layer: drawn at full resolution so Hungarian accents stay sharp */
+  #hud {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    image-rendering: auto;
+    pointer-events: none;
+  }
+  .hint { margin-top: 22px; font-size: 20px; color: var(--muted); line-height: 1.9; }
   kbd {
     font: inherit;
-    border: 1px solid var(--muted);
-    border-bottom-width: 2px;
-    border-radius: 4px;
-    padding: 0 5px;
     color: var(--ink);
+    background: var(--panel);
+    padding: 2px 6px;
+    box-shadow: 0 0 0 2px var(--frame);
   }
 </style>
 </head>
 <body>
 <main>
   <header>
-    <h1>NAPI<span>SAURUS</span></h1>
-    <button id="mute" type="button" aria-pressed="false">Sound: on</button>
+    <h1>NAPI <small>VS</small> <span>BATATRANS</span></h1>
+    <button id="mute" type="button" aria-pressed="false">Hang be</button>
   </header>
-  <canvas id="game" width="800" height="260" aria-label="Napisaurus runner game"></canvas>
+  <div class="screen">
+    <canvas id="game" width="400" height="130" aria-label="Napi vs Batatrans játék"></canvas>
+    <canvas id="hud" width="800" height="260" aria-hidden="true"></canvas>
+  </div>
   <p class="hint">
-    <kbd>Space</kbd> / <kbd>↑</kbd> jump &nbsp;·&nbsp; <kbd>↓</kbd> duck &nbsp;·&nbsp;
-    On a phone: tap to jump, swipe down to duck.<br>
-    Jump over the computers, and watch out for the Batatrans crew, some of them can fly.
+    <kbd>Szóköz</kbd> <kbd>↑</kbd> ugrás &nbsp; <kbd>↓</kbd> guggolás<br>
+    Telefonon: koppints az ugráshoz, húzd le az ujjad a guggoláshoz.<br>
+    Kerüld ki a gépeket és a Batatrans csapatot. Néhányan repülnek is!
   </p>
 </main>
 
 <script>
 (() => {
   const W = 800, H = 260, GROUND = 222;
-  // Napi is drawn from three layers (body + two legs) so the legs can run; sprite sizes are in image pixels
-  const SPRITE_W = 145, SPRITE_H = 288;
-  const HIP_L = [56.5, 194.9], HIP_R = [98.4, 194.9];
-  const NAPI_H = 92, NAPI_W = NAPI_H * SPRITE_W / SPRITE_H;
-  // crouching pulls the legs up under the hoodie (sprite px) and drops the body by the same amount
-  const CROUCH_LIFT = 58, CROUCH_DROP = CROUCH_LIFT * NAPI_H / SPRITE_H;
+  // the game is drawn at half size and the browser scales it up with hard pixel edges
+  const RES = 0.5;
+  const snap = v => Math.round(v * RES) / RES;
+  // Tiny5 has proper Hungarian accents (ő, ű) and clear capitals; Press Start 2P is kept for logo-style text
+  const FONT = '{size}px "Tiny5", ui-monospace, Consolas, monospace';
+  const LOGO_FONT = '{size}px "Press Start 2P", ui-monospace, Consolas, monospace';
+
+  // Napi's frames in napi-sprites.png as [x, y, w, h, head centre x] in atlas pixels, plus a size fix:
+  // the sheet draws some poses smaller, so each frame is scaled until its head matches the run frames
+  const NAPI_FRAMES = [
+    [0, 0, 203, 280, 143.4, 1.02], [268, 0, 204, 279, 138.3, 1.01], [536, 0, 204, 278, 138.6, 0.99], [804, 0, 201, 282, 138.3, 0.98],
+    [0, 284, 156, 214, 117.8, 1.12], [268, 284, 157, 265, 90.0, 1.17], [536, 284, 150, 250, 93.1, 1.17], [804, 284, 168, 214, 130.5, 1.12],
+    [0, 551, 176, 159, 138.4, 1.11], [268, 551, 234, 154, 196.3, 1.11], [536, 551, 266, 145, 228.4, 1.11], [804, 551, 171, 152, 132.9, 1.11],
+  ];
+  const frameSize = f => {
+    const [, , w, h, headX, fix] = NAPI_FRAMES[f], k = SPRITE_SCALE * fix;
+    return { w: w * k, h: h * k, headX: headX * k };
+  };
+  // the sheet's run frames all have the same leg in front, so stride and knee-up poses alternate to read as steps
+  const RUN = [0, 5, 0, 5], READY = 4, JUMP_UP = 5, JUMP_DOWN = 6, LAND = 7, CROUCH = [8, 9, 10, 11];
+  const NAPI_H = 92, SPRITE_SCALE = NAPI_H / 280;   // game px per atlas px
+  const HEAD_X = 46;                                 // Napi's head is drawn this far right of napi.x
   const GRAVITY = 2500, JUMP_V = 830, SHORT_HOP_V = 400;
   const START_SPEED = 400, MAX_SPEED = 1000, ACCEL = 9;
-  const INK = '#3b3b3b', ORANGE = '#e8590c', ORANGE_DARK = '#b8430a', NAVY = '#2b3a55';
+  const INK = '#2b2430', ORANGE = '#f26b1d', ORANGE_DARK = '#b8430a';
 
   const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
+  const gameCtx = canvas.getContext('2d');
+  const hud = document.getElementById('hud');
+  const hudCtx = hud.getContext('2d');
+  let ctx = gameCtx;   // the drawing helpers draw on whichever layer is current
   const muteBtn = document.getElementById('mute');
+  canvas.width = W * RES;
+  canvas.height = H * RES;
+  gameCtx.setTransform(RES, 0, 0, RES, 0, 0);
+  gameCtx.imageSmoothingQuality = 'high';
 
-  const loadImg = src => { const img = new Image(); img.src = src; return img; };
-  const napiBody = loadImg('napi-body.png');
-  const napiLegL = loadImg('napi-leg-l.png');
-  const napiLegR = loadImg('napi-leg-r.png');
-  const loaded = img => img.complete && img.naturalWidth > 0;
-
-  function resize() {
+  function sizeHud() {
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingQuality = 'high';
+    hud.width = W * dpr;
+    hud.height = H * dpr;
+    hudCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-  resize();
-  window.addEventListener('resize', resize);
+  sizeHud();
+  window.addEventListener('resize', sizeHud);
+
+  const napiSprites = new Image();
+  napiSprites.src = 'napi-sprites.png';
+  const loaded = img => img.complete && img.naturalWidth > 0;
 
   // ---------- storage (best effort) ----------
   function loadHi() {
@@ -128,7 +188,7 @@
   let muted = false;
   try { muted = localStorage.getItem('napisaurus-muted') === '1'; } catch {}
   function syncMute() {
-    muteBtn.textContent = muted ? 'Sound: off' : 'Sound: on';
+    muteBtn.textContent = muted ? 'Hang ki' : 'Hang be';
     muteBtn.setAttribute('aria-pressed', String(muted));
   }
   syncMute();
@@ -165,6 +225,12 @@
   // ---------- helpers ----------
   const rand = (a, b) => a + Math.random() * (b - a);
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const setFont = (size, font = FONT) => { ctx.font = font.replace('{size}', size); };
+
+  function shade(hex, f) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgb(${[n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(v * f))})`;
+  }
 
   function rr(x, y, w, h, r, fill, stroke = INK, lw = 2) {
     ctx.beginPath();
@@ -178,21 +244,42 @@
     if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
   }
 
+  function circle(x, y, r, fill, stroke = INK, lw = 2) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+  }
+
+  // a thick outlined stroke through the given points (arms, legs)
+  function limb(pts, width, color) {
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const [lw, c] of [[width + 3, INK], [width, color]]) {
+      ctx.strokeStyle = c;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.stroke();
+    }
+  }
+
   function codeLines(x, y, w, h, seed, color = '#4ade80') {
     ctx.fillStyle = color;
     const rows = Math.floor((h - 4) / 4);
     for (let i = 0; i < rows; i++) {
       const s = Math.sin(seed * 13.7 + i * 7.3) * 0.5 + 0.5;
-      const indent = (i % 3) * 3;
-      ctx.fillRect(x + 3 + indent, y + 3 + i * 4, Math.max(4, (w - 8 - indent) * s), 2);
+      const indent = (i % 3) * 4;
+      ctx.fillRect(x + 4 + indent, y + 4 + i * 4, snap(Math.max(4, (w - 8 - indent) * s)), 2);
     }
   }
 
   // ---------- computers ----------
   function drawLaptop(o, b) {
     const x = o.x;
-    rr(x + 5, b - 31, 34, 25, 3, '#5b616b');
-    rr(x + 8, b - 28, 28, 19, 1, '#14231b', null);
+    rr(x + 5, b - 31, 34, 25, 2, '#5b616b');
+    rr(x + 8, b - 28, 28, 19, 0, '#14231b', null);
     codeLines(x + 8, b - 28, 28, 19, o.seed);
     rr(x, b - 7, 44, 7, 2, '#4a4f57');
   }
@@ -205,146 +292,268 @@
     ctx.fillStyle = '#c9c0aa'; ctx.fill();
     ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
     // body
-    rr(x, b - 50, 44, 39, 5, '#ddd5c2');
+    rr(x, b - 50, 44, 39, 3, '#ddd5c2');
     if (bsod) {
-      rr(x + 5, b - 45, 34, 25, 2, '#1f4fbf', null);
+      rr(x + 5, b - 45, 34, 25, 0, '#1f4fbf', null);
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 13px ui-monospace, Consolas, monospace';
-      ctx.fillText(':(', x + 8, b - 31);
-      ctx.fillRect(x + 9, b - 27, 24, 2);
-      ctx.fillRect(x + 9, b - 24, 16, 2);
+      setFont(16, LOGO_FONT);
+      ctx.fillText(':(', x + 6, b - 27);
+      ctx.fillRect(x + 8, b - 25, 24, 2);
     } else {
-      rr(x + 5, b - 45, 34, 25, 2, '#14231b', null);
+      rr(x + 5, b - 45, 34, 25, 0, '#14231b', null);
       codeLines(x + 5, b - 45, 34, 25, seed);
-      if (Math.floor(t * 3) % 2) { ctx.fillStyle = '#4ade80'; ctx.fillRect(x + 31, b - 26, 4, 3); }
+      if (Math.floor(t * 3) % 2) { ctx.fillStyle = '#4ade80'; ctx.fillRect(x + 30, b - 26, 4, 4); }
     }
     ctx.fillStyle = '#7bd389';
-    ctx.fillRect(x + 36, b - 17, 3, 3);
+    ctx.fillRect(x + 36, b - 18, 4, 4);
   }
 
   function drawTower(o, b, t) {
     const x = o.x;
-    rr(x, b - 58, 28, 58, 3, '#ddd5c2');
-    rr(x + 4, b - 52, 20, 7, 1, '#c9c0aa', INK, 1.5);
-    rr(x + 4, b - 42, 20, 7, 1, '#c9c0aa', INK, 1.5);
+    rr(x, b - 58, 28, 58, 2, '#ddd5c2');
+    rr(x + 4, b - 52, 20, 8, 0, '#c9c0aa', INK, 2);
+    rr(x + 4, b - 40, 20, 8, 0, '#c9c0aa', INK, 2);
     ctx.fillStyle = INK;
-    for (let i = 0; i < 4; i++) ctx.fillRect(x + 6, b - 26 + i * 4, 16, 1.5);
+    for (let i = 0; i < 3; i++) ctx.fillRect(x + 6, b - 26 + i * 4, 16, 2);
     ctx.fillStyle = Math.floor(t * 4 + o.seed) % 2 ? '#22c55e' : '#14532d';
-    ctx.beginPath(); ctx.arc(x + 14, b - 8, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(x + 12, b - 10, 4, 4);
   }
 
   function drawServer(o, b, t) {
     const x = o.x;
-    rr(x, b - 80, 40, 80, 3, '#2f3540');
+    rr(x, b - 80, 40, 80, 2, '#2f3540');
     for (let i = 0; i < 7; i++) {
-      const y = b - 75 + i * 10.5;
-      rr(x + 4, y, 32, 8, 1, '#3f4754', '#1d2129', 1);
-      const on = Math.sin(t * 9 + i * 2.1 + o.seed) > 0;
-      ctx.fillStyle = on ? '#22c55e' : '#14532d';
-      ctx.fillRect(x + 28, y + 3, 3, 2);
+      const y = b - 76 + i * 10;
+      rr(x + 4, y, 32, 8, 0, '#3f4754', '#1d2129', 2);
+      ctx.fillStyle = Math.sin(t * 9 + i * 2.1 + o.seed) > 0 ? '#22c55e' : '#14532d';
+      ctx.fillRect(x + 28, y + 2, 4, 4);
       ctx.fillStyle = (i + Math.floor(t * 2)) % 3 ? '#f59e0b' : '#78350f';
-      ctx.fillRect(x + 23, y + 3, 3, 2);
+      ctx.fillRect(x + 22, y + 2, 4, 4);
     }
   }
 
   // ---------- Batatrans crew ----------
-  const HAIR = ['#3b2a1f', '#6b4423', '#1f1f1f', '#c58b3c', '#8a8a8a'];
-  const SKIN = ['#f1c7a3', '#e0ac85', '#c68a5f', '#f5d3b8'];
+  const HAIR = ['#3b2a1f', '#6b4423', '#1f1f1f', '#c58b3c', '#8a8a8a', '#a33b20'];
+  const SKIN = ['#f1c7a3', '#e0ac85', '#c68a5f', '#f5d3b8', '#8d5a3b'];
+  const PANTS = ['#2b3a55', '#2b3a55', '#3f3f46', '#5b4a36'];
+  const STYLES = ['short', 'short', 'long', 'bun', 'cap', 'bald'];
+  const ITEMS = [null, null, 'mug', 'clipboard', 'phone', 'papers'];
   const LINES = [
-    'Got a minute?', 'Quick call?', 'Is it fixed?', 'Printer broke!',
-    'Wi-Fi is down!', 'Ticket #4521', 'Meeting now!', 'Can you help?',
-    'Excel crashed!', 'Password reset?',
+    'Van 1 perced?', 'Gyors hívás?', 'Megjavult?', 'A nyomtató!', 'Nincs Wi-Fi!',
+    'Hibajegy #42', 'Megbeszélés!', 'Segítség!', 'Excel lehalt', 'Új jelszó?',
   ];
 
-  function drawLogoB(cx, cy, size) {
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${size}px ui-monospace, Consolas, monospace`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('B', cx, cy + 0.5);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
+  const randomLook = (styles = STYLES) => ({
+    hair: pick(HAIR), skin: pick(SKIN), pants: pick(PANTS), style: pick(styles), item: pick(ITEMS),
+    glasses: Math.random() < 0.3, beard: Math.random() < 0.2,
+  });
+
+  // head centred on (x, y), facing left towards Napi
+  function drawHead(x, y, look) {
+    if (look.style === 'long') rr(x + 1, y - 7, 11, 24, 4, look.hair);   // hair falling down the back
+    circle(x, y, 10, look.skin);
+    // nose and ear
+    ctx.beginPath(); ctx.arc(x - 10, y + 1, 2.5, Math.PI * 0.5, Math.PI * 1.5);
+    ctx.fillStyle = look.skin; ctx.fill(); ctx.stroke();
+    circle(x + 4, y + 1, 3, look.skin, INK, 1.5);
+    ctx.fillStyle = 'rgba(43,36,48,0.3)';
+    ctx.fillRect(x + 3, y, 2, 2);
+
+    if (look.style === 'cap') {
+      ctx.beginPath(); ctx.arc(x + 1, y - 2, 10.5, Math.PI, Math.PI * 2); ctx.closePath();
+      ctx.fillStyle = ORANGE; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+      rr(x - 17, y - 4, 12, 4, 1, ORANGE_DARK);
+      ctx.fillStyle = '#fff'; ctx.fillRect(x - 2, y - 10, 4, 4);
+    } else if (look.style === 'bald') {
+      ctx.fillStyle = look.hair; ctx.fillRect(x + 5, y - 5, 5, 8);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(x - 4, y - 8, 4, 2);
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(x - 10, y - 2);
+      ctx.arc(x + 0.5, y - 1, 10.5, Math.PI * 1.02, Math.PI * 2.15);
+      ctx.lineTo(x + 6, y - 3);
+      ctx.lineTo(x - 4, y - 6);
+      ctx.closePath();
+      ctx.fillStyle = look.hair; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+      if (look.style === 'bun') circle(x + 9, y - 10, 5, look.hair);
+    }
+    if (look.beard) {
+      ctx.beginPath();
+      ctx.arc(x - 1, y + 1, 9.5, Math.PI * 0.1, Math.PI * 0.95);
+      ctx.arc(x - 3, y + 2, 5, Math.PI * 0.9, Math.PI * 0.15, true);
+      ctx.closePath();
+      ctx.fillStyle = look.hair; ctx.fill();
+    }
+    // face
+    ctx.fillStyle = '#fff'; ctx.fillRect(x - 8, y - 2, 4, 4);
+    ctx.fillStyle = INK;
+    ctx.fillRect(x - 8, y - 1, 2, 3);
+    ctx.fillRect(x - 9, y - 5, 5, 2);
+    if (!look.beard) ctx.fillRect(x - 8, y + 5, 4, 2);
+    ctx.fillStyle = 'rgba(240,120,120,0.45)'; ctx.fillRect(x - 5, y + 2, 4, 2);
+    if (look.glasses) {
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+      ctx.strokeRect(x - 10, y - 3, 7, 6);
+      ctx.beginPath(); ctx.moveTo(x - 3, y - 1); ctx.lineTo(x + 3, y - 1); ctx.stroke();
+    }
   }
 
-  function drawWalker(cx, b, phase, look) {
-    const s = Math.sin(phase);
-    ctx.lineCap = 'round';
-    // back arm
-    ctx.strokeStyle = look.skin; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(cx, b - 51); ctx.lineTo(cx + s * 9, b - 34); ctx.stroke();
-    // legs
-    ctx.strokeStyle = NAVY; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(cx, b - 30); ctx.lineTo(cx + s * 8, b - 3); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, b - 30); ctx.lineTo(cx - s * 8, b - 3); ctx.stroke();
-    // shoes
-    ctx.fillStyle = '#222';
-    ctx.fillRect(cx + s * 8 - 6, b - 4, 8, 4);
-    ctx.fillRect(cx - s * 8 - 6, b - 4, 8, 4);
-    // shirt
-    rr(cx - 11, b - 57, 22, 30, 7, ORANGE);
-    // front arm
-    ctx.strokeStyle = look.skin; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(cx, b - 51); ctx.lineTo(cx - s * 9, b - 34); ctx.stroke();
-    drawLogoB(cx + 3, b - 40, 10);
-    // head
-    ctx.beginPath(); ctx.arc(cx, b - 66, 9.5, 0, Math.PI * 2);
-    ctx.fillStyle = look.skin; ctx.fill();
-    ctx.strokeStyle = INK; ctx.lineWidth = 1.8; ctx.stroke();
-    ctx.beginPath(); ctx.arc(cx, b - 68, 9.5, Math.PI * 1.05, Math.PI * 1.95);
-    ctx.fillStyle = look.hair; ctx.fill();
-    // face (looking left, towards Napi)
-    ctx.fillStyle = INK;
-    ctx.fillRect(cx - 6, b - 67, 2, 2.5);
-    ctx.fillRect(cx - 7, b - 62, 4, 1.2);
+  // swing > 0 moves the knee forward (left), bend folds the shin back
+  function legJoints(hx, hy, swing, bend) {
+    const kx = hx - Math.sin(swing) * 15, ky = hy + Math.cos(swing) * 15;
+    const a = swing - bend;
+    return [[hx, hy], [kx, ky], [kx - Math.sin(a) * 15, ky + Math.cos(a) * 15]];
+  }
+
+  function armJoints(sx, sy, swing, bend) {
+    const ex = sx - Math.sin(swing) * 10, ey = sy + Math.cos(swing) * 10;
+    const a = swing + bend;
+    return [[sx, sy], [ex, ey], [ex - Math.sin(a) * 9, ey + Math.cos(a) * 9]];
+  }
+
+  function drawArm(j, look) {
+    limb(j, 4, look.skin);
+    limb([j[0], [(j[0][0] + j[1][0]) / 2, (j[0][1] + j[1][1]) / 2]], 6, ORANGE);   // short sleeve
+    circle(j[2][0], j[2][1], 2.8, look.skin, INK, 1.5);
+  }
+
+  function drawShoe(fx, fy) {
+    rr(fx - 8, fy - 4, 11, 6, 2, '#26222b');
+    ctx.fillStyle = '#8b8496';
+    ctx.fillRect(fx - 7, fy, 8, 2);
+  }
+
+  function drawTorso(cx, hipY) {
+    const top = hipY - 28;
+    rr(cx - 11, top, 22, 30, 6, ORANGE);
+    ctx.fillStyle = ORANGE_DARK;
+    ctx.fillRect(cx + 5, top + 5, 4, 20);
+    // polo collar
+    ctx.fillStyle = '#fff3e6';
+    ctx.beginPath(); ctx.moveTo(cx - 8, top + 1); ctx.lineTo(cx, top + 1); ctx.lineTo(cx - 5, top + 7); ctx.closePath(); ctx.fill();
+    // belt
+    ctx.fillStyle = '#2a2230'; ctx.fillRect(cx - 10, hipY - 4, 20, 4);
+    ctx.fillStyle = '#e0b341'; ctx.fillRect(cx - 8, hipY - 4, 4, 4);
+    // lanyard and Batatrans ID badge
+    ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - 8, top + 2); ctx.lineTo(cx - 5, top + 12); ctx.lineTo(cx - 1, top + 2); ctx.stroke();
+    rr(cx - 9, top + 11, 8, 10, 1, '#ffffff', INK, 1.5);
+    ctx.fillStyle = ORANGE; ctx.fillRect(cx - 8, top + 12, 6, 3);
+    ctx.fillStyle = '#9ca3af'; ctx.fillRect(cx - 8, top + 17, 4, 2);
+  }
+
+  function drawItem(item, hx, hy, t) {
+    if (item === 'mug') {
+      rr(hx - 10, hy - 7, 8, 9, 1, '#ffffff');
+      ctx.strokeStyle = INK; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(hx - 1, hy - 3, 2.5, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+      ctx.fillStyle = ORANGE; ctx.fillRect(hx - 9, hy - 3, 6, 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      const rise = (t * 10) % 6;
+      ctx.fillRect(snap(hx - 8 + Math.sin(t * 8) * 1.5), snap(hy - 12 - rise), 2, 4);
+    } else if (item === 'clipboard') {
+      rr(hx - 13, hy - 15, 12, 16, 1, '#a0743f');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(hx - 11, hy - 12, 8, 11);
+      ctx.fillStyle = '#9ca3af';
+      for (let i = 0; i < 3; i++) ctx.fillRect(hx - 10, hy - 10 + i * 3, 6, 1.5);
+      ctx.fillStyle = '#6b7280'; ctx.fillRect(hx - 9, hy - 17, 4, 3);
+    } else if (item === 'papers') {
+      rr(hx - 14, hy - 4, 13, 5, 0, '#ffffff', INK, 1.5);
+      rr(hx - 12, hy - 8, 13, 5, 0, '#f3f4f6', INK, 1.5);
+    }
+  }
+
+  function drawWalker(cx, b, p, look, t) {
+    const legs = [0, Math.PI].map(off => legJoints(cx, 0, Math.sin(p + off) * 0.45, Math.max(0, Math.cos(p + off)) * 0.8));
+    const lowest = Math.max(legs[0][2][1], legs[1][2][1]);
+    const hipY = b - 2 - lowest;                  // keeps the planted foot on the ground
+    for (const leg of legs) for (const pt of leg) pt[1] += hipY;
+    const sx = cx + 1, sy = hipY - 23;
+    const headX = cx - 1, headY = hipY - 39;
+
+    drawArm(armJoints(sx, sy, Math.sin(p) * 0.5, 0.35), { ...look, skin: shade(look.skin, 0.85) });
+    limb(legs[1], 6, shade(look.pants, 0.75));
+    drawShoe(legs[1][2][0], legs[1][2][1]);
+    limb(legs[0], 6, look.pants);
+    drawShoe(legs[0][2][0], legs[0][2][1]);
+    ctx.fillStyle = look.skin; ctx.fillRect(headX - 3, headY + 6, 6, 8);   // neck
+    drawTorso(cx, hipY);
+    drawHead(headX, headY, look);
+
+    if (look.item === 'phone') {
+      const hand = [headX + 3, headY + 5];
+      limb([[sx, sy], [sx - 7, sy + 8], hand], 4, look.skin);
+      limb([[sx, sy], [sx - 3, sy + 4]], 6, ORANGE);
+      rr(headX + 1, headY - 5, 5, 11, 1, '#1f2937');
+      ctx.fillStyle = '#7dd3fc'; ctx.fillRect(headX + 2, headY - 3, 2, 6);
+      circle(hand[0], hand[1], 2.8, look.skin, INK, 1.5);
+    } else if (look.item) {
+      const j = armJoints(sx, sy, 0.2, 1.6);
+      drawItem(look.item, j[2][0], j[2][1], t);
+      drawArm(j, look);
+    } else {
+      drawArm(armJoints(sx, sy, -Math.sin(p) * 0.5, 0.35), look);
+    }
   }
 
   function drawFlyer(o, b, t) {
-    const x = o.x, cy = b - 13;
-    const flap = Math.sin(t * 14 + o.seed) * 5;
-    ctx.lineCap = 'round';
+    const x = o.x, cy = b - 13, look = o.look;
+    const flap = Math.sin(t * 14 + o.seed) * 4;
+    // speed lines
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    for (let i = 0; i < 3; i++) ctx.fillRect(snap(x + 72 + ((t * 140 + i * 13) % 14)), cy - 10 + i * 8, 14, 2);
     // cape
     ctx.beginPath();
     ctx.moveTo(x + 18, cy - 7);
-    ctx.quadraticCurveTo(x + 42, cy - 16 + flap, x + 64, cy - 10 - flap);
-    ctx.lineTo(x + 60, cy - 2 + flap * 0.5);
-    ctx.quadraticCurveTo(x + 40, cy - 2, x + 22, cy);
+    ctx.quadraticCurveTo(x + 44, cy - 18 + flap, x + 68, cy - 12 - flap);
+    ctx.lineTo(x + 63, cy - 5 + flap * 0.5);
+    ctx.lineTo(x + 68, cy + 1 - flap * 0.3);
+    ctx.quadraticCurveTo(x + 44, cy - 1, x + 22, cy + 1);
     ctx.closePath();
     ctx.fillStyle = ORANGE_DARK; ctx.fill();
-    ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke();
-    // legs
-    ctx.strokeStyle = NAVY; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(x + 36, cy + 2); ctx.lineTo(x + 56, cy + 4 + flap * 0.4); ctx.stroke();
-    ctx.fillStyle = '#222'; ctx.fillRect(x + 55, cy + 1 + flap * 0.4, 5, 7);
-    // body
-    rr(x + 14, cy - 8, 26, 16, 7, ORANGE);
-    drawLogoB(x + 27, cy, 10);
-    // arms reaching forward
-    ctx.strokeStyle = o.look.skin; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(x + 16, cy - 4); ctx.lineTo(x - 2, cy - 7 - flap * 0.6); ctx.stroke();
-    // head
-    ctx.beginPath(); ctx.arc(x + 9, cy - 3, 8.5, 0, Math.PI * 2);
-    ctx.fillStyle = o.look.skin; ctx.fill();
-    ctx.strokeStyle = INK; ctx.lineWidth = 1.8; ctx.stroke();
-    ctx.beginPath(); ctx.arc(x + 10, cy - 5, 8.5, Math.PI * 1.1, Math.PI * 1.95);
-    ctx.fillStyle = o.look.hair; ctx.fill();
-    ctx.fillStyle = INK; ctx.fillRect(x + 4, cy - 4, 2, 2.5);
+    ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    // legs and boots
+    limb([[x + 38, cy + 2], [x + 49, cy + 6], [x + 58, cy + 5 + flap * 0.5]], 6, shade(look.pants, 0.75));
+    rr(x + 57, cy + 1 + flap * 0.5, 7, 8, 2, '#26222b');
+    limb([[x + 38, cy], [x + 50, cy + 1], [x + 59, cy - 1 - flap * 0.4]], 6, look.pants);
+    rr(x + 58, cy - 6 - flap * 0.4, 7, 8, 2, '#26222b');
+    // body with belt and emblem
+    rr(x + 15, cy - 8, 27, 15, 6, ORANGE);
+    ctx.fillStyle = ORANGE_DARK; ctx.fillRect(x + 19, cy + 2, 18, 3);
+    ctx.fillStyle = '#2a2230'; ctx.fillRect(x + 36, cy - 7, 4, 13);
+    ctx.fillStyle = '#e0b341'; ctx.fillRect(x + 36, cy - 2, 4, 4);
+    circle(x + 26, cy - 1, 4.5, '#ffffff', INK, 1.5);
+    ctx.fillStyle = ORANGE; ctx.fillRect(x + 24, cy - 3, 4, 4);
+    // necktie flapping back over the shoulder
+    ctx.beginPath();
+    ctx.moveTo(x + 17, cy - 6); ctx.lineTo(x + 31, cy - 14 + flap);
+    ctx.lineTo(x + 33, cy - 9 + flap); ctx.lineTo(x + 19, cy - 3); ctx.closePath();
+    ctx.fillStyle = '#1d4ed8'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke();
+    // arm punching forward
+    const fist = [x - 5, cy - 8 - flap * 0.3];
+    limb([[x + 18, cy - 3], [x + 6, cy - 7], fist], 4, look.skin);
+    limb([[x + 18, cy - 3], [x + 11, cy - 5]], 6, ORANGE);
+    circle(fist[0], fist[1], 3.5, look.skin);
+    // head with flying goggles
+    drawHead(x + 10, cy - 6, { ...look, glasses: false });
+    ctx.fillStyle = '#2a2230'; ctx.fillRect(x + 2, cy - 10, 17, 3);
+    rr(x - 1, cy - 11, 8, 6, 2, '#9be7ff', INK, 1.5);
+    ctx.fillStyle = '#fff'; ctx.fillRect(x + 1, cy - 10, 2, 2);
   }
 
   function drawBubble(text, cx, by) {
-    ctx.font = 'bold 11px ui-monospace, Consolas, monospace';
-    const w = ctx.measureText(text).width + 12, h = 18;
-    const x = Math.min(Math.max(cx - w / 2, 4), W - w - 4), y = by - h;
-    rr(x, y, w, h, 6, '#fff', INK, 1.5);
+    setFont(22);
+    const w = ctx.measureText(text).width + 16, h = 30;
+    const x = snap(Math.min(Math.max(cx - w / 2, 4), W - w - 4)), y = by - h;
+    rr(x, y, w, h, 4, '#fff', INK, 2);
     ctx.beginPath();
-    ctx.moveTo(cx - 4, y + h - 1); ctx.lineTo(cx, y + h + 6); ctx.lineTo(cx + 4, y + h - 1);
+    ctx.moveTo(cx - 5, y + h - 1); ctx.lineTo(cx, y + h + 7); ctx.lineTo(cx + 5, y + h - 1);
     ctx.fillStyle = '#fff'; ctx.fill();
-    ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(cx - 4, y + h); ctx.lineTo(cx, y + h + 6); ctx.lineTo(cx + 4, y + h); ctx.stroke();
+    ctx.strokeStyle = INK; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - 5, y + h); ctx.lineTo(cx, y + h + 7); ctx.lineTo(cx + 5, y + h); ctx.stroke();
     ctx.fillStyle = INK;
-    ctx.fillText(text, x + 6, y + 13);
+    ctx.fillText(text, x + 8, y + 22);
   }
-
-  const randomLook = () => ({ hair: pick(HAIR), skin: pick(SKIN) });
 
   // ---------- obstacle factory ----------
   function makeObstacle() {
@@ -352,13 +561,13 @@
     const seed = Math.random() * 100;
     if (score > 150 && r < 0.22) {
       const elev = pick([14, 74, 74, 104]);
-      return { kind: 'flyer', w: 64, h: 26, elev, vx: 70, seed, look: randomLook(), inset: 5 };
+      return { kind: 'flyer', w: 64, h: 26, elev, vx: 70, seed, look: randomLook(['short', 'cap', 'bald', 'bun']), inset: 5 };
     }
     if (r < 0.47) {
       const count = score > 350 && Math.random() < 0.35 ? 2 : 1;
-      const looks = Array.from({ length: count }, randomLook);
+      const looks = Array.from({ length: count }, () => randomLook());
       return {
-        kind: 'walker', w: count === 2 ? 52 : 26, h: 70, elev: 0, vx: 45, seed, looks, count,
+        kind: 'walker', w: count === 2 ? 52 : 26, h: 76, elev: 0, vx: 45, seed, looks, count,
         say: Math.random() < 0.7 ? pick(LINES) : null, inset: 5,
       };
     }
@@ -374,6 +583,8 @@
 
   function drawObstacle(o, t) {
     const b = GROUND - o.elev;
+    ctx.save();
+    ctx.translate(snap(o.x) - o.x, 0);   // whole-pixel steps keep edges crisp while scrolling
     if (o.kind === 'computer') {
       if (o.type === 'laptop') drawLaptop(o, b);
       else if (o.type === 'monitor') drawMonitor(o.x, b, o.seed, false, t);
@@ -385,13 +596,13 @@
         drawMonitor(o.x + 46, b, o.seed + 3, Math.sin(o.seed) > 0.6, t);
       }
     } else if (o.kind === 'walker') {
-      const phase = t * 12 + o.seed;
-      drawWalker(o.x + 13, b, phase, o.looks[0]);
-      if (o.count === 2) drawWalker(o.x + 39, b, phase + 1.7, o.looks[1]);
-      if (o.say && o.x < W - 60 && o.x > napi.x + 60) drawBubble(o.say, o.x + 13, b - 82);
+      const phase = t * 10 + o.seed;
+      if (o.count === 2) drawWalker(o.x + 39, b, phase + 1.7, o.looks[1], t);
+      drawWalker(o.x + 13, b, phase, o.looks[0], t);
     } else {
       drawFlyer(o, b, t);
     }
+    ctx.restore();
   }
 
   function obstacleBox(o) {
@@ -400,87 +611,97 @@
   }
 
   // ---------- background ----------
-  const clouds = Array.from({ length: 4 }, (_, i) => ({ x: i * 230 + rand(0, 120), y: rand(60, 100), s: rand(0.7, 1.2) }));
+  const SKY = [['#8fd0ef', 52], ['#a2d8f1', 44], ['#b5e0f3', 38], ['#c8e8f4', 34], ['#daf0f3', 30], ['#ebf6f1', 24]];
+  const CLOUD = [
+    '....XXXX.......',
+    '..XXXXXXXX.XX..',
+    '.XXXXXXXXXXXXX.',
+    'XXXXXXXXXXXXXXX',
+    '.SSSSSSSSSSSSS.',
+  ];
+  const clouds = Array.from({ length: 4 }, (_, i) => ({ x: i * 230 + rand(0, 120), y: rand(56, 96), s: pick([4, 6]) }));
   // the Batatrans campus: two big HQ buildings per loop, the rest are smaller company blocks
   const skyline = [];
   let skylineWidth = 0;
   for (let i = 0; i < 14; i++) {
-    const hq = i % 7 === 2;
-    const w = hq ? 210 : rand(55, 95), h = hq ? 112 : rand(42, 86);
-    skyline.push({ x: skylineWidth, w, h, hq, sign: i % 7 === 5 });
+    const hq = i % 7 === 2, sign = i % 7 === 5;
+    const w = hq ? 300 : sign ? 160 : snap(rand(56, 96)), h = hq ? 112 : snap(rand(42, 86));
+    skyline.push({ x: skylineWidth, w, h, hq, sign, seed: i * 7 });
     skylineWidth += w + 12;
   }
 
   function drawCloud(x, y, s) {
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = '#d6cfc0';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(x, y, 10 * s, Math.PI * 0.5, Math.PI * 1.5);
-    ctx.arc(x + 14 * s, y - 9 * s, 13 * s, Math.PI, Math.PI * 2);
-    ctx.arc(x + 32 * s, y - 3 * s, 10 * s, Math.PI * 1.3, Math.PI * 0.5);
-    ctx.closePath();
-    ctx.fill(); ctx.stroke();
+    x = snap(x);
+    CLOUD.forEach((row, r) => {
+      for (let c = 0; c < row.length; c++) {
+        if (row[c] === '.') continue;
+        ctx.fillStyle = row[c] === 'X' ? '#ffffff' : '#cfe3ee';
+        ctx.fillRect(x + c * s, y + r * s, s, s);
+      }
+    });
+  }
+
+  function drawWindows(x, y, w, gx, gy, x0, x1, y1, seed, dark, lit) {
+    let i = 0;
+    for (let wy = y; wy < y1; wy += gy) {
+      for (let wx = x + x0; wx < x + w - x1; wx += gx) {
+        ctx.fillStyle = Math.sin(seed + i++ * 12.9898) > 0.82 ? lit : dark;
+        ctx.fillRect(wx, wy, 8, 8);
+      }
+    }
   }
 
   function drawBuilding(bld, x) {
+    x = snap(x);
     const y = GROUND - bld.h;
     ctx.textAlign = 'center';
     if (bld.hq) {
-      ctx.fillStyle = '#ecdccb';
+      ctx.fillStyle = '#f4d9bd';
       ctx.fillRect(x, y, bld.w, bld.h);
-      ctx.fillStyle = '#f0b48a';
+      ctx.fillStyle = '#e8874a';
       ctx.fillRect(x, y, bld.w, 6);
-      ctx.fillStyle = '#dcc6ae';
-      for (let wy = y + 16; wy < GROUND - 32; wy += 13) {
-        for (let wx = x + 40; wx < x + bld.w - 12; wx += 14) ctx.fillRect(wx, wy, 8, 8);
-      }
+      drawWindows(x, y + 16, bld.w, 14, 14, 48, 12, GROUND - 34, bld.seed, '#d4a983', '#fde68a');
       // logo on the facade
-      ctx.beginPath(); ctx.arc(x + 20, y + 26, 12, 0, Math.PI * 2);
-      ctx.fillStyle = '#ec9a68'; ctx.fill();
+      ctx.fillStyle = '#e8874a';
+      ctx.fillRect(x + 10, y + 16, 26, 26);
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 15px ui-monospace, Consolas, monospace';
-      ctx.fillText('B', x + 20, y + 31);
+      setFont(16, LOGO_FONT);
+      ctx.fillText('B', x + 24, y + 37);
       // glass entrance
       const dx = x + bld.w / 2 - 24;
-      ctx.fillStyle = '#d3dde2';
+      ctx.fillStyle = '#bfe3f2';
       ctx.fillRect(dx, GROUND - 26, 48, 26);
-      ctx.fillStyle = '#ec9a68';
+      ctx.fillStyle = '#e8874a';
       ctx.fillRect(dx - 4, GROUND - 30, 56, 4);
-      ctx.fillStyle = '#bccad1';
-      ctx.fillRect(dx + 23, GROUND - 26, 2, 26);
+      ctx.fillStyle = '#8fb8c9';
+      ctx.fillRect(dx + 22, GROUND - 26, 4, 26);
       // big rooftop letters
       ctx.fillStyle = '#c9b7a3';
-      for (const px of [x + 30, x + bld.w / 2, x + bld.w - 30]) ctx.fillRect(px - 1, y - 8, 2, 8);
-      ctx.fillStyle = '#e9874d';
-      ctx.font = 'bold 27px ui-monospace, Consolas, monospace';
-      ctx.fillText('BATATRANS', x + bld.w / 2, y - 9);
+      for (const px of [x + 40, x + bld.w / 2, x + bld.w - 40]) ctx.fillRect(px - 2, y - 8, 4, 8);
+      setFont(32, LOGO_FONT);
+      ctx.fillStyle = '#9a3412';
+      ctx.fillText('BATATRANS', x + bld.w / 2 + 4, y - 6);
+      ctx.fillStyle = ORANGE;
+      ctx.fillText('BATATRANS', x + bld.w / 2, y - 10);
     } else {
-      ctx.fillStyle = '#e6e0d5';
+      ctx.fillStyle = '#e6dccd';
       ctx.fillRect(x, y, bld.w, bld.h);
-      ctx.fillStyle = '#f0c6a7';
+      ctx.fillStyle = '#f0b48a';
       ctx.fillRect(x, y, bld.w, 4);
-      ctx.fillStyle = '#d9d1c4';
-      for (let wy = y + 10; wy < GROUND - 10; wy += 12) {
-        for (let wx = x + 7; wx < x + bld.w - 8; wx += 12) ctx.fillRect(wx, wy, 6, 6);
-      }
+      drawWindows(x, y + 10, bld.w, 12, 12, 8, 8, GROUND - 10, bld.seed, '#cbbfad', '#fde68a');
       if (bld.sign) {
-        rr(x + bld.w / 2 - 38, y - 19, 76, 15, 3, '#f6d2b8', '#e3a57c', 1.5);
-        ctx.fillStyle = '#c4622a';
-        ctx.font = 'bold 10px ui-monospace, Consolas, monospace';
-        ctx.fillText('BATATRANS', x + bld.w / 2, y - 8);
+        rr(x + bld.w / 2 - 76, y - 30, 152, 26, 0, '#fff3e6', INK, 2);
+        setFont(16, LOGO_FONT);
+        ctx.fillStyle = ORANGE_DARK;
+        ctx.fillText('BATATRANS', x + bld.w / 2, y - 9);
       }
     }
     ctx.textAlign = 'left';
   }
 
   function drawBackground() {
-    const g = ctx.createLinearGradient(0, 0, 0, GROUND);
-    g.addColorStop(0, '#e7f0f7');
-    g.addColorStop(1, '#f7f4ec');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-
+    let y = 0;
+    for (const [color, h] of SKY) { ctx.fillStyle = color; ctx.fillRect(0, y, W, h); y += h; }
     for (const c of clouds) drawCloud(c.x, c.y, c.s);
 
     // skyline, two copies for seamless wrap
@@ -493,25 +714,24 @@
     }
 
     // ground
-    ctx.fillStyle = '#efe8da';
+    ctx.fillStyle = '#ead8ad';
     ctx.fillRect(0, GROUND, W, H - GROUND);
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(W, GROUND); ctx.stroke();
-    ctx.fillStyle = '#b9b09d';
+    ctx.fillStyle = INK;
+    ctx.fillRect(0, GROUND, W, 4);
     for (let i = 0; i < 40; i++) {
       const span = W + 60;
-      const x = ((i * 97.3 - groundOffset) % span + span) % span - 30;
-      const y = GROUND + 6 + ((i * 53) % 28);
-      ctx.fillRect(x, y, (i % 3) + 2, 2);
+      const x = snap(((i * 97.3 - groundOffset) % span + span) % span - 30);
+      const gy = GROUND + 10 + ((i * 53) % 26);
+      ctx.fillStyle = i % 4 ? '#c9b079' : '#b39a64';
+      ctx.fillRect(x, snap(gy), (i % 3) * 2 + 4, 2);
     }
   }
 
   // ---------- game state ----------
-  const napi = { x: 50, elev: 0, vy: 0, onGround: true, ducking: false };
+  const napi = { x: 50, elev: 0, vy: 0, onGround: true, ducking: false, landedAt: -1 };
   let state = 'ready';
   let speed, score, hi = loadHi(), obstacles, particles, gapLeft;
-  let t = 0, runPhase = 0, skyOffset = 0, groundOffset = 0, dustTimer = 0;
+  let t = 0, animClock = 0, skyOffset = 0, groundOffset = 0, dustTimer = 0;
   let flashUntil = 0, overAt = 0, overReason = '', newHi = false;
   let jumpHeld = false, duckHeld = false;
 
@@ -554,23 +774,39 @@
 
   const isCrouching = () => state === 'running' && napi.ducking && napi.onGround;
 
+  function napiFrame() {
+    if (state === 'ready') return READY;
+    if (state === 'over') return RUN[0];
+    if (!napi.onGround) return napi.vy > 0 ? JUMP_UP : JUMP_DOWN;
+    if (isCrouching()) return CROUCH[Math.floor(animClock * 0.8) % 4];
+    if (t - napi.landedAt < 0.09) return LAND;
+    return RUN[Math.floor(animClock) % 4];
+  }
+
+  // the straight-legged knee-up pose stands taller than the stride; sink it (the ground hides the toe) so the head stays steady
+  function runSink(f) {
+    if (state !== 'running' || !napi.onGround || isCrouching() || f !== RUN[1]) return 0;
+    return frameSize(f).h - frameSize(RUN[0]).h - 3;
+  }
+
   function napiBox() {
-    const h = isCrouching() ? NAPI_H - CROUCH_DROP : NAPI_H;
-    return { x: napi.x + 9, y: GROUND - napi.elev - h + 6, w: NAPI_W - 18, h: h - 8 };
+    const f = napiFrame(), h = frameSize(f).h - runSink(f);
+    if (isCrouching()) return { x: napi.x + 8, y: GROUND - h + 8, w: 48, h: h - 8 };
+    return { x: napi.x + 16, y: GROUND - napi.elev - h + 6, w: 38, h: h - 8 };
   }
 
   const hits = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
   function reasonFor(o) {
-    if (o.kind === 'flyer') return 'A flying Batatrans colleague caught you!';
-    if (o.kind === 'walker') return o.say ? `Batatrans got you: "${o.say}"` : 'Cornered by Batatrans!';
+    if (o.kind === 'flyer') return 'Elkapott egy repülő kolléga!';
+    if (o.kind === 'walker') return o.say ? `Batatrans: "${o.say}"` : 'Sarokba szorított a Batatrans!';
     return {
-      laptop: 'Tripped over a laptop!',
-      monitor: 'Crashed into a monitor!',
-      bsod: 'Blue screen of death!',
-      tower: 'Ran into a PC tower!',
-      pair: 'Double monitor setup got you!',
-      server: 'Hit the server rack!',
+      laptop: 'Átestél egy laptopon!',
+      monitor: 'Nekimentél egy monitornak!',
+      bsod: 'Kék halál!',
+      tower: 'Nekifutottál egy gépháznak!',
+      pair: 'Elkapott a dupla monitor!',
+      server: 'Nekimentél a szervernek!',
     }[o.type];
   }
 
@@ -587,7 +823,7 @@
     t += dt;
     for (const c of clouds) {
       c.x -= (state === 'running' ? speed * 0.06 : 12) * dt;
-      if (c.x < -60) { c.x = W + rand(20, 160); c.y = rand(60, 100); c.s = rand(0.7, 1.2); }
+      if (c.x < -100) { c.x = W + rand(20, 160); c.y = rand(56, 96); c.s = pick([4, 6]); }
     }
     if (state !== 'running') return;
 
@@ -598,7 +834,8 @@
 
     skyOffset = (skyOffset + speed * 0.12 * dt) % skylineWidth;
     groundOffset += speed * dt;
-    runPhase += dt * speed / 26;
+    // animation runs at a calm, capped frame rate (about 9-12 poses per second)
+    animClock += dt * Math.min(12, 6 + speed / 120);
 
     // Napi physics
     napi.ducking = duckHeld;
@@ -607,7 +844,8 @@
       napi.elev += napi.vy * dt;
       if (napi.elev <= 0) {
         napi.elev = 0; napi.vy = 0; napi.onGround = true;
-        for (let i = 0; i < 6; i++) particles.push({ x: napi.x + NAPI_W / 2 + rand(-12, 12), y: GROUND - 2, vx: rand(-80, 40), vy: rand(-60, -20), life: 0.35, max: 0.35 });
+        napi.landedAt = t;
+        for (let i = 0; i < 6; i++) particles.push({ x: napi.x + HEAD_X - 12 + rand(-12, 12), y: GROUND - 2, vx: rand(-80, 40), vy: rand(-60, -20), life: 0.35, max: 0.35 });
         if (jumpHeld && !duckHeld) jump();
       }
     }
@@ -616,8 +854,8 @@
     if (napi.onGround) {
       dustTimer -= dt;
       if (dustTimer <= 0) {
-        dustTimer = 0.07;
-        particles.push({ x: napi.x + 10, y: GROUND - 2, vx: -speed * 0.25 - rand(0, 40), vy: rand(-30, -5), life: 0.4, max: 0.4 });
+        dustTimer = 0.08;
+        particles.push({ x: napi.x + 14, y: GROUND - 4, vx: -speed * 0.25 - rand(0, 40), vy: rand(-30, -5), life: 0.4, max: 0.4 });
       }
     }
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
@@ -637,80 +875,35 @@
       o.x -= (speed + o.vx) * dt;
       if (hits(box, obstacleBox(o))) { gameOver(o); break; }
     }
-    obstacles = obstacles.filter(o => o.x + o.w > -20);
+    obstacles = obstacles.filter(o => o.x + o.w > -40);
   }
 
   // ---------- render ----------
-  function drawLeg(img, hip, { rot = 0, lift = 0 }) {
-    if (!loaded(img)) return;
-    ctx.save();
-    ctx.translate(hip[0], hip[1] - lift);
-    ctx.rotate(rot);
-    ctx.drawImage(img, -hip[0], -hip[1]);
-    ctx.restore();
-  }
-
-  // draws Napi with the feet centred on (0, 0); leg poses are in sprite pixels / radians
-  function drawFigure(pose) {
-    const k = NAPI_H / SPRITE_H;
-    ctx.save();
-    ctx.translate(-NAPI_W / 2, -NAPI_H);
-    ctx.scale(k, k);
-    drawLeg(napiLegL, HIP_L, pose.l);
-    drawLeg(napiLegR, HIP_R, pose.r);
-    if (loaded(napiBody)) ctx.drawImage(napiBody, 0, 0);
-    ctx.restore();
-  }
-
-  function legPose() {
-    if (state !== 'running') return { l: {}, r: {} };
-    if (!napi.onGround) return { l: { rot: -0.4, lift: 26 }, r: { rot: 0.3 } };
-    const s = Math.sin(runPhase);
-    if (isCrouching()) {
-      // squat with the knees apart, still taking small steps
-      return {
-        l: { rot: 0.28, lift: CROUCH_LIFT + Math.max(0, s) * 10 },
-        r: { rot: -0.28, lift: CROUCH_LIFT + Math.max(0, -s) * 10 },
-      };
-    }
-    // the leg swinging forward lifts its foot, the other one pushes back along the ground
-    return {
-      l: { rot: -0.32 * s, lift: Math.max(0, s) * 26 },
-      r: { rot: 0.32 * s, lift: Math.max(0, -s) * 26 },
-    };
-  }
-
   function drawNapi() {
-    const crouching = isCrouching();
-    const running = state === 'running';
+    const f = napiFrame();
+    const [fx, fy, fw, fh] = NAPI_FRAMES[f];
+    const { w, h, headX } = frameSize(f);
+    const left = napi.x + HEAD_X - headX;
 
     // shadow
     const shadowScale = Math.max(0.35, 1 - napi.elev / 180);
-    ctx.fillStyle = 'rgba(59,59,59,0.18)';
-    ctx.beginPath();
-    ctx.ellipse(napi.x + NAPI_W / 2, GROUND + 1, (NAPI_W / 2 + 4) * shadowScale, 4 * shadowScale, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = 'rgba(43,36,48,0.22)';
+    ctx.fillRect(snap(left + w / 2 - w * 0.4 * shadowScale), GROUND + 4, snap(w * 0.8 * shadowScale), 4);
 
-    const bob = running && napi.onGround ? Math.abs(Math.cos(runPhase)) * (crouching ? 1 : 2) : 0;
-    let tilt = 0;
-    if (running) tilt = crouching ? 0.12 : napi.onGround ? 0.05 : -0.04;
-    if (state === 'over') tilt = -0.18;
     ctx.save();
-    ctx.translate(napi.x + NAPI_W / 2, GROUND - napi.elev - bob);
-    ctx.rotate(tilt);
-    if (crouching) ctx.translate(0, CROUCH_DROP);
-    drawFigure(legPose());
+    if (napi.onGround) { ctx.beginPath(); ctx.rect(0, 0, W, GROUND + 2); ctx.clip(); }
+    ctx.translate(snap(left + w / 2), snap(GROUND + 2 - napi.elev + runSink(f)));
+    if (state === 'over') ctx.rotate(-0.18);
+    if (loaded(napiSprites)) ctx.drawImage(napiSprites, fx, fy, fw, fh, -w / 2, -h, w, h);
     ctx.restore();
 
     if (state === 'over') {
       // dizzy stars over Napi's head
+      setFont(22);
+      ctx.fillStyle = '#f59e0b';
       for (let i = 0; i < 3; i++) {
         const a = t * 5 + i * (Math.PI * 2 / 3);
-        const sx = napi.x + NAPI_W / 2 + Math.cos(a) * 16;
-        const sy = GROUND - napi.elev - NAPI_H - 6 + Math.sin(a) * 4;
-        ctx.fillStyle = '#f59e0b';
-        ctx.font = 'bold 12px ui-monospace, Consolas, monospace';
-        ctx.fillText('*', sx - 3, sy + 4);
+        ctx.fillText('*', snap(napi.x + HEAD_X - 8 + Math.cos(a) * 18), snap(GROUND - napi.elev - h + 4 + Math.sin(a) * 5));
       }
     }
   }
@@ -718,61 +911,71 @@
   const pad = n => String(Math.floor(n)).padStart(5, '0');
 
   function drawHud() {
-    ctx.font = 'bold 16px ui-monospace, Consolas, monospace';
+    setFont(24);
     ctx.textAlign = 'right';
     const blinking = t < flashUntil && Math.floor(t * 8) % 2 === 0;
-    ctx.fillStyle = '#8a8478';
-    ctx.fillText(`HI ${pad(hi)}`, W - 100, 28);
+    ctx.fillStyle = '#5a5168';
+    ctx.fillText(`Csúcs ${pad(hi)}`, W - 90, 34);
     if (!blinking) {
       ctx.fillStyle = INK;
-      ctx.fillText(pad(t < flashUntil ? Math.floor(score / 100) * 100 : score), W - 16, 28);
+      ctx.fillText(pad(t < flashUntil ? Math.floor(score / 100) * 100 : score), W - 16, 34);
     }
     ctx.textAlign = 'left';
   }
 
-  function centerText(text, y, size, color = INK) {
-    ctx.font = `bold ${size}px ui-monospace, Consolas, monospace`;
-    ctx.fillStyle = color;
+  function centerText(text, y, size, color = INK, shadow = null, font = FONT) {
+    setFont(size, font);
     ctx.textAlign = 'center';
+    if (shadow) { ctx.fillStyle = shadow; ctx.fillText(text, W / 2 + size / 8, y + size / 8); }
+    ctx.fillStyle = color;
     ctx.fillText(text, W / 2, y);
     ctx.textAlign = 'left';
   }
 
   function drawRestartIcon(cx, cy) {
     ctx.strokeStyle = INK;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.arc(cx, cy, 14, Math.PI * 0.3, Math.PI * 1.9);
     ctx.stroke();
     const ax = cx + Math.cos(Math.PI * 1.9) * 14, ay = cy + Math.sin(Math.PI * 1.9) * 14;
     ctx.fillStyle = INK;
     ctx.beginPath();
-    ctx.moveTo(ax + 7, ay - 3); ctx.lineTo(ax - 4, ay - 8); ctx.lineTo(ax - 1, ay + 6);
+    ctx.moveTo(ax + 8, ay - 3); ctx.lineTo(ax - 5, ay - 9); ctx.lineTo(ax - 1, ay + 7);
     ctx.closePath(); ctx.fill();
   }
 
   function render() {
+    // the pixel world
+    ctx = gameCtx;
     drawBackground();
     for (const o of obstacles) drawObstacle(o, t);
 
     for (const p of particles) {
-      ctx.fillStyle = `rgba(150,140,120,${(p.life / p.max) * 0.8})`;
-      ctx.beginPath(); ctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = `rgba(150,130,95,${(p.life / p.max) * 0.9})`;
+      ctx.fillRect(snap(p.x), snap(p.y), 4, 4);
     }
     drawNapi();
+
+    // sharp text layer on top
+    ctx = hudCtx;
+    ctx.clearRect(0, 0, W, H);
+    for (const o of obstacles) {
+      if (o.say && o.x < W - 60 && o.x > napi.x + 60) drawBubble(o.say, snap(o.x) + 12, GROUND - o.elev - 92);
+    }
     drawHud();
 
     if (state === 'ready') {
-      rr(W / 2 - 170, 58, 340, 82, 10, 'rgba(255,255,255,0.92)', INK, 2);
-      centerText('NAPISAURUS RUN', 92, 26);
-      centerText('Press SPACE or tap to start', 124, 14, '#6b665c');
+      rr(W / 2 - 300, 50, 600, 96, 0, '#fff7e8', INK, 4);
+      centerText('NAPI VS BATATRANS', 100, 32, ORANGE, '#9a3412', LOGO_FONT);
+      centerText('Nyomd meg a szóközt, vagy koppints!', 132, 24, INK);
     } else if (state === 'over') {
-      ctx.fillStyle = 'rgba(247,244,236,0.82)';
+      ctx.fillStyle = 'rgba(255,247,232,0.85)';
       ctx.fillRect(0, 0, W, H);
-      centerText('G A M E   O V E R', 70, 24);
-      centerText(overReason, 98, 14, ORANGE_DARK);
-      if (newHi) centerText('NEW HIGH SCORE!', 122, 13, '#15803d');
-      drawRestartIcon(W / 2, 156);
+      centerText('Játék vége', 80, 48, INK);
+      centerText(overReason, 114, 24, ORANGE_DARK);
+      if (newHi) centerText('Új rekord!', 142, 24, '#15803d');
+      drawRestartIcon(W / 2, 178);
     }
   }
 
