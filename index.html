@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b1726">
-<title>Napi vs Batatrans</title>
+<title>Napi vs az iroda</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Tiny5&display=swap" rel="stylesheet">
@@ -190,7 +190,7 @@
 <body>
 <main>
   <header>
-    <h1>NAPI <small>VS</small> <span>BATATRANS</span></h1>
+    <h1>NAPI <small>VS</small> <span>AZ IRODA</span></h1>
     <div class="controls">
       <button id="fullscreen" type="button" hidden>Teljes képernyő</button>
       <button id="mute" type="button" aria-pressed="false">Hang be</button>
@@ -202,7 +202,7 @@
       Guggolás
     </button>
     <div class="screen">
-      <canvas id="game" width="400" height="130" aria-label="Napi vs Batatrans játék"></canvas>
+      <canvas id="game" width="400" height="130" aria-label="Napi vs az iroda játék"></canvas>
       <canvas id="hud" width="800" height="260" aria-hidden="true"></canvas>
     </div>
     <button class="pad" id="jump-pad" type="button">
@@ -214,7 +214,7 @@
     <span class="keys"><kbd>Szóköz</kbd> <kbd>↑</kbd> ugrás &nbsp; <kbd>↓</kbd> guggolás<br></span>
     <span class="touch">Tartsd nyomva a bal gombot a guggoláshoz, a jobbal (vagy bárhova koppintva) ugrasz.<br></span>
     <span class="rotate">Fordítsd el a telefont a nagyobb képért!<br></span>
-    Kerüld ki a gépeket és a Batatrans csapatot. Néhányan repülnek is!
+    Kerüld ki a gépeket és a kollégákat. Néhányan repülnek is!
   </p>
 </main>
 
@@ -451,7 +451,7 @@
     }
   }
 
-  // ---------- Batatrans crew ----------
+  // ---------- office crew ----------
   const HAIR = ['#3b2a1f', '#6b4423', '#1f1f1f', '#c58b3c', '#8a8a8a', '#a33b20'];
   const SKIN = ['#f1c7a3', '#e0ac85', '#c68a5f', '#f5d3b8', '#8d5a3b'];
   const PANTS = ['#2b3a55', '#2b3a55', '#3f3f46', '#5b4a36'];
@@ -553,7 +553,7 @@
     // belt
     ctx.fillStyle = '#2a2230'; ctx.fillRect(cx - 10, hipY - 4, 20, 4);
     ctx.fillStyle = '#e0b341'; ctx.fillRect(cx - 8, hipY - 4, 4, 4);
-    // lanyard and Batatrans ID badge
+    // lanyard and company ID badge
     ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(cx - 8, top + 2); ctx.lineTo(cx - 5, top + 12); ctx.lineTo(cx - 1, top + 2); ctx.stroke();
     rr(cx - 9, top + 11, 8, 10, 1, '#ffffff', INK, 1.5);
@@ -739,7 +739,7 @@
     '.SSSSSSSSSSSSS.',
   ];
   const clouds = Array.from({ length: 4 }, (_, i) => ({ x: i * 230 + rand(0, 120), y: rand(56, 96), s: pick([4, 6]) }));
-  // the Batatrans campus: two big HQ buildings per loop, the rest are smaller company blocks
+  // the office park: two big HQ buildings per loop, the rest are smaller company blocks
   const skyline = [];
   let skylineWidth = 0;
   for (let i = 0; i < 14; i++) {
@@ -780,12 +780,10 @@
       ctx.fillStyle = '#e8874a';
       ctx.fillRect(x, y, bld.w, 6);
       drawWindows(x, y + 16, bld.w, 14, 14, 48, 12, GROUND - 34, bld.seed, '#d4a983', '#fde68a');
-      // logo on the facade
+      // plain logo on the facade
       ctx.fillStyle = '#e8874a';
       ctx.fillRect(x + 10, y + 16, 26, 26);
-      ctx.fillStyle = '#fff';
-      setFont(16, LOGO_FONT);
-      ctx.fillText('B', x + 24, y + 37);
+      circle(x + 23, y + 29, 7, null, '#fff', 4);
       // glass entrance
       const dx = x + bld.w / 2 - 24;
       ctx.fillStyle = '#bfe3f2';
@@ -799,9 +797,9 @@
       for (const px of [x + 40, x + bld.w / 2, x + bld.w - 40]) ctx.fillRect(px - 2, y - 8, 4, 8);
       setFont(32, LOGO_FONT);
       ctx.fillStyle = '#9a3412';
-      ctx.fillText('BATATRANS', x + bld.w / 2 + 4, y - 6);
+      ctx.fillText('IRODA', x + bld.w / 2 + 4, y - 6);
       ctx.fillStyle = ORANGE;
-      ctx.fillText('BATATRANS', x + bld.w / 2, y - 10);
+      ctx.fillText('IRODA', x + bld.w / 2, y - 10);
     } else {
       ctx.fillStyle = '#e6dccd';
       ctx.fillRect(x, y, bld.w, bld.h);
@@ -812,7 +810,7 @@
         rr(x + bld.w / 2 - 76, y - 30, 152, 26, 0, '#fff3e6', INK, 2);
         setFont(16, LOGO_FONT);
         ctx.fillStyle = ORANGE_DARK;
-        ctx.fillText('BATATRANS', x + bld.w / 2, y - 9);
+        ctx.fillText('IRODA', x + bld.w / 2, y - 9);
       }
     }
     ctx.textAlign = 'left';
@@ -918,7 +916,7 @@
 
   function reasonFor(o) {
     if (o.kind === 'flyer') return 'Elkapott egy repülő kolléga!';
-    if (o.kind === 'walker') return o.say ? `Batatrans: "${o.say}"` : 'Sarokba szorított a Batatrans!';
+    if (o.kind === 'walker') return o.say ? `Kolléga: "${o.say}"` : 'Sarokba szorított egy kolléga!';
     return {
       laptop: 'Átestél egy laptopon!',
       monitor: 'Nekimentél egy monitornak!',
@@ -1086,7 +1084,7 @@
 
     if (state === 'ready') {
       rr(W / 2 - 300, 50, 600, 96, 0, '#fff7e8', INK, 4);
-      centerText('NAPI VS BATATRANS', 100, 32, ORANGE, '#9a3412', LOGO_FONT);
+      centerText('NAPI VS AZ IRODA', 100, 32, ORANGE, '#9a3412', LOGO_FONT);
       centerText('Nyomd meg a szóközt, vagy koppints!', 132, 24, INK);
     } else if (state === 'over') {
       ctx.fillStyle = 'rgba(255,247,232,0.85)';
