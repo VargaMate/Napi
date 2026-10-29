@@ -2,7 +2,8 @@
 <html lang="hu">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b1726">
 <title>Napi vs Batatrans</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,28 +16,43 @@
     --muted: #a99fbd;
     --accent: #ff7a2f;
     --frame: #0e0b14;
+    --pad: 16px;
+    --chrome: 260px;   /* height kept free for the title and hints */
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body {
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
     background: radial-gradient(circle at 50% 0%, #2d2442 0%, var(--bg) 60%) var(--bg);
     color: var(--ink);
     font-family: "Tiny5", ui-monospace, Consolas, monospace;
-    padding: 16px;
+    /* keep clear of notches and rounded corners */
+    padding: max(var(--pad), env(safe-area-inset-top)) max(var(--pad), env(safe-area-inset-right))
+             max(var(--pad), env(safe-area-inset-bottom)) max(var(--pad), env(safe-area-inset-left));
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
   }
   /* as wide as the window allows while the whole game, title and hints still fit on screen */
-  main { width: 100%; max-width: max(320px, min(1800px, calc((100vh - 260px) * 800 / 260))); }
+  main { width: 100%; max-width: max(280px, min(1800px, calc((100vh - var(--chrome)) * 800 / 260))); }
+  @supports (height: 100dvh) {
+    main { max-width: max(280px, min(1800px, calc((100dvh - var(--chrome)) * 800 / 260))); }
+  }
   header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 18px;
   }
+  .controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-left: auto; }
   h1 {
     margin: 0;
     font-family: "Press Start 2P", ui-monospace, Consolas, monospace;
@@ -60,7 +76,10 @@
     cursor: pointer;
     box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.4), 0 0 0 3px var(--frame);
   }
-  button:hover { background: var(--accent); color: var(--frame); }
+  /* on touch screens :hover sticks after a tap, so only real pointers get it */
+  @media (hover: hover) {
+    button:hover { background: var(--accent); color: var(--frame); }
+  }
   .screen {
     position: relative;
     border: 6px solid var(--frame);
@@ -103,21 +122,50 @@
     padding: 2px 6px;
     box-shadow: 0 0 0 2px var(--frame);
   }
+  .rotate { display: none; color: var(--accent); }
+
+  /* touch screens: no keyboard hints; in portrait suggest turning the phone */
+  @media (hover: none) and (pointer: coarse) {
+    .keys { display: none; }
+  }
+  @media (orientation: portrait) and (pointer: coarse) {
+    .rotate { display: inline; }
+  }
+
+  /* narrow phones and the Galaxy Fold cover screen */
+  @media (max-width: 480px) {
+    :root { --pad: 10px; }
+    button { font-size: 16px; padding: 8px 10px; }
+    .hint { font-size: 16px; line-height: 1.7; }
+  }
+
+  /* phones held sideways: the game takes almost the whole screen */
+  @media (orientation: landscape) and (max-height: 500px) {
+    :root { --pad: 8px; --chrome: 84px; }
+    header { margin-bottom: 10px; }
+    h1 { font-size: 14px; text-shadow: 2px 2px 0 #000; }
+    button { font-size: 16px; padding: 6px 10px; }
+    .hint { display: none; }
+  }
 </style>
 </head>
 <body>
 <main>
   <header>
     <h1>NAPI <small>VS</small> <span>BATATRANS</span></h1>
-    <button id="mute" type="button" aria-pressed="false">Hang be</button>
+    <div class="controls">
+      <button id="fullscreen" type="button" hidden>Teljes képernyő</button>
+      <button id="mute" type="button" aria-pressed="false">Hang be</button>
+    </div>
   </header>
   <div class="screen">
     <canvas id="game" width="400" height="130" aria-label="Napi vs Batatrans játék"></canvas>
     <canvas id="hud" width="800" height="260" aria-hidden="true"></canvas>
   </div>
   <p class="hint">
-    <kbd>Szóköz</kbd> <kbd>↑</kbd> ugrás &nbsp; <kbd>↓</kbd> guggolás<br>
-    Telefonon: koppints az ugráshoz, húzd le az ujjad a guggoláshoz.<br>
+    <span class="keys"><kbd>Szóköz</kbd> <kbd>↑</kbd> ugrás &nbsp; <kbd>↓</kbd> guggolás<br></span>
+    Telefonon: koppints bárhova az ugráshoz, húzd le az ujjad a guggoláshoz.<br>
+    <span class="rotate">Fordítsd el a telefont a nagyobb képért!<br></span>
     Kerüld ki a gépeket és a Batatrans csapatot. Néhányan repülnek is!
   </p>
 </main>
@@ -199,10 +247,33 @@
     muteBtn.blur();
   });
 
+  // ---------- fullscreen (phones: hides the browser bar and turns the game sideways) ----------
+  const fsBtn = document.getElementById('fullscreen');
+  const root = document.documentElement;
+  const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+  if ((document.fullscreenEnabled || document.webkitFullscreenEnabled) && matchMedia('(pointer: coarse)').matches) {
+    fsBtn.hidden = false;
+  }
+  const syncFs = () => { fsBtn.textContent = fsElement() ? 'Kilépés' : 'Teljes képernyő'; };
+  document.addEventListener('fullscreenchange', syncFs);
+  document.addEventListener('webkitfullscreenchange', syncFs);
+  fsBtn.addEventListener('click', async () => {
+    fsBtn.blur();
+    try {
+      if (fsElement()) {
+        await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      } else {
+        await (root.requestFullscreen || root.webkitRequestFullscreen).call(root);
+        if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
+      }
+    } catch {}
+  });
+
   function beep(freq, dur, { type = 'square', vol = 0.04, slideTo = null, delay = 0 } = {}) {
     if (muted) return;
     try {
       actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();   // mobile browsers start audio paused
       const t0 = actx.currentTime + delay;
       const osc = actx.createOscillator();
       const gain = actx.createGain();
@@ -1008,26 +1079,34 @@
   });
   window.addEventListener('blur', () => { jumpHeld = false; duckHeld = false; });
 
+  // touches anywhere on the page play the game (a bigger target than the small canvas on a phone), except on the buttons
   let touchStartY = null, touchStartT = 0;
-  canvas.addEventListener('touchstart', e => {
+  document.addEventListener('touchstart', e => {
+    if (e.target.closest('button')) return;
     e.preventDefault();
+    if (touchStartY !== null) return;   // a second finger doesn't jump again
     touchStartY = e.touches[0].clientY;
     touchStartT = t;
     jumpHeld = true;
     press();
   }, { passive: false });
-  canvas.addEventListener('touchmove', e => {
+  document.addEventListener('touchmove', e => {
+    if (touchStartY === null) return;
     e.preventDefault();
-    if (touchStartY !== null && !duckHeld && e.touches[0].clientY - touchStartY > 25) {
+    if (!duckHeld && e.touches[0].clientY - touchStartY > 25) {
       duckHeld = true;
       jumpHeld = false;
       // the tap already started a hop; a quick swipe turns it into an immediate drop
       if (t - touchStartT < 0.25) napi.vy = Math.min(napi.vy, 0);
     }
   }, { passive: false });
-  const endTouch = () => { touchStartY = null; jumpHeld = false; duckHeld = false; releaseJump(); };
-  canvas.addEventListener('touchend', endTouch);
-  canvas.addEventListener('touchcancel', endTouch);
+  const endTouch = e => {
+    if (touchStartY === null || e.touches.length) return;
+    touchStartY = null; jumpHeld = false; duckHeld = false; releaseJump();
+  };
+  document.addEventListener('touchend', endTouch);
+  document.addEventListener('touchcancel', endTouch);
+  document.addEventListener('contextmenu', e => e.preventDefault());   // long-press menu
 
   canvas.addEventListener('mousedown', () => { jumpHeld = true; press(); });
   window.addEventListener('mouseup', () => { if (jumpHeld) { jumpHeld = false; releaseJump(); } });
